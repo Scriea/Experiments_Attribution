@@ -7,5 +7,5 @@ def get_demonstrations_random(icl_dataset:list, k:int=3)-> dict:
         question = demo["question"]
         answer = demo["anwer"]
         context = demo["context"]
-        prompt+= f"Question {i+1}: {question} \nAnswer: {answer}\n"
+        prompt+= f"Question {i+1}: {question}\nContext: {context}\nAnswer: {answer}\n"
     return prompt

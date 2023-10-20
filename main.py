@@ -9,7 +9,6 @@ from selector import get_demonstrations_random
 from evaluate import load
 squad_metric = load("squad")
 
-
 """
 Helper Functions
 """
@@ -45,8 +44,8 @@ def main():
 
     for i in range(len(dev_data)):
         # print("Executed " + str(i))
-        demonstrations = get_random_demonstrations(dev_data[i]['question'])
-        query = initial_string + dev_data[i]['question'] + " Response: "
+        demo_prompt = get_demonstrations_random(icl_dataset, dev_data[i]['question'])
+        query = initial_string + demo_prompt + "Question:" + dev_data[i]['question'] + " Response: "
         sequences = pipeline(
             query,
             max_length=500,
