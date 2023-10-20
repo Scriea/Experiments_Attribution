@@ -1,9 +1,10 @@
 import os
+import pickle
 import torch
 import transformers
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoTokenizer, TrainingArguments
 from datasets import load_dataset
-import pickle
+from selector import randomSampling
 
 from evaluate import load
 squad_metric = load("squad")
@@ -35,7 +36,7 @@ def main():
         trust_remote_code=True,
         device_map="auto",
     )
-    
+    icl_dataset = pickle.load(open('data/finetune_data_600_plus_url.pkl', 'rb'))
     nq_open = load_dataset('nq_open', cache_dir='../data/')
     dev_data = nq_open['validation']
     train_data = nq_open['train']
