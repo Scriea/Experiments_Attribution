@@ -4,7 +4,7 @@ import torch
 import transformers
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoTokenizer, TrainingArguments
 from datasets import load_dataset
-from selector import randomSampling
+from selector import get_demonstrations_random
 
 from evaluate import load
 squad_metric = load("squad")
