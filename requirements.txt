@@ -1,6 +1,9 @@
 transformers
-datasets
 torch
 trl
-pickle
+datasets
+accelerate
+bitsandbytes 
+einops 
+wandb
 evaluate
