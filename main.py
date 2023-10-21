@@ -1,19 +1,27 @@
-import os
+import random
 import pickle
 import torch
 import transformers
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoTokenizer, TrainingArguments
 from datasets import load_dataset
-from selector import get_demonstrations_random
+from selector import *
 
 from evaluate import load
 squad_metric = load("squad")
+from rank_bm25 import BM25Okapi
 
 """
 Helper Functions
 """
+def split_and_shuffle(input_list, split_ratio=0.3):
+    random.shuffle(input_list)
+    split_index = int(len(input_list) * split_ratio)
+    train = input_list[:split_index]
+    dev = input_list[split_index:]
+    
+    return train, dev
 
-def main():
+def main(type):
     bnb_config = BitsAndBytesConfig(
         load_in_8bit=True,
         #bnb_4bit_quant_type="nf4",
@@ -23,7 +31,8 @@ def main():
         "tiiuae/falcon-7b-instruct",
         quantization_config=bnb_config,
         trust_remote_code=True,
-        device_map="auto",
+        device_map=5,
+        device = 5
     )
     tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-7b-instruct")
     tokenizer.pad_token = tokenizer.eos_token
@@ -33,22 +42,53 @@ def main():
         tokenizer=tokenizer,
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
-        device_map="auto",
+        device_map = 5,
+        device = 5
     )
     icl_dataset = pickle.load(open('data/finetune_data_600_plus_url.pkl', 'rb'))
     nq_open = load_dataset('nq_open', cache_dir='../data/')
     dev_data = nq_open['validation']
     train_data = nq_open['train']
-    initial_string = "Generate a background context to answer the following question. Here are few examples:"
-    final_results={}
-
-    for i in range(len(dev_data)):
-        # print("Executed " + str(i))
-        demo_prompt = get_demonstrations_random(icl_dataset, dev_data[i]['question'])
-        query = initial_string + demo_prompt + "Question:" + dev_data[i]['question'] + " Response: "
+    initial_string = "Given a question generate background context and answer the given question based on the generated context.\nExample:"
+    final_results_random={}
+    final_results_bm25={}
+    final_results_coverage={}
+    answers = []
+    
+    ## RandomSampling
+    print("Method: Random Sampling")
+    for i in range(len(train_data)):
+        print("Executed " + str(i))
+        demo_prompt = get_demonstrations_random(icl_dataset, 3)
+        query = initial_string + demo_prompt + "\nQuestion:" + train_data[i]['question'] + " Response: "
         sequences = pipeline(
             query,
-            max_length=500,
+            max_length=1024,
+            do_sample=True,
+            top_k=1,
+            num_return_sequences=1,
+            eos_token_id=tokenizer.eos_token_id,
+        )
+
+        for seq in sequences:
+            print(f"Result: {seq['generated_text']}")
+            with open("test_nqopen_random.txt", "a", encoding='utf-8') as myfile:
+                myfile.write(seq['generated_text'] + "\n")
+
+        final_results_random[train_data[i]['question']] = seq['generated_text']
+
+        with open('ICL_Random_Sampling_input_qnplusanswer_600_op_url_results.pkl', 'wb') as f:
+                pickle.dump(final_results_random, f)
+
+    ## BertScore
+    print("Method: Coverage - BertScore")
+    for i in range(len(train_data)):
+        print("Executed " + str(i))
+        # demo_prompt = get_demonstrations_random(icl_dataset, train_data[i]['question'])
+        query = initial_string + demo_prompt + "\nQuestion:" + train_data[i]['question'] + " Response: "
+        sequences = pipeline(
+            query,
+            max_length=1024,
             do_sample=True,
             top_k=1,
             num_return_sequences=1,
@@ -60,13 +100,37 @@ def main():
             with open("test_nqopen.txt", "a") as myfile:
                 myfile.write(seq['generated_text'] + "\n")
 
-        final_results[dev_data[i]['question']] = seq['generated_text']
+        final_results_coverage[dev_data[i]['question']] = seq['generated_text']
 
-        with open('llm_as_retriever_input_qnplusanswer_600_op_url_results.pkl', 'wb') as f:
-                pickle.dump(final_results, f)
+        with open('ICL_Random_Sampling_input_qnplusanswer_600_op_url_results.pkl', 'wb') as f:
+                pickle.dump(final_results_coverage, f)
 
-    results = squad_metric.compute(predictions=predictions, references=references)
+    # BM25
+    corpus = [qca['question'] + qca['context'] + " ".join(qca['answer']) for qca in icl_dataset]
+    tokenized_corpus = [doc.split(" ") for doc in corpus]
+    bm25 = BM25Okapi(tokenized_corpus)
+    print("Method: BM25 Ranking")
+    for i in range(len(train_data)):
+        print("Executed " + str(i))
+        demo_prompt = get_demonstrations_bm25(icl_dataset, corpus, query, bm25,3)
+        query = initial_string + demo_prompt + "\nQuestion:" + train_data[i]['question'] + " Response: "
+        sequences = pipeline(
+            query,
+            max_length=1024,
+            do_sample=True,
+            top_k=1,
+            num_return_sequences=1,
+            eos_token_id=tokenizer.eos_token_id,
+        )
+        for seq in sequences:
+            print(f"Result: {seq['generated_text']}")
+            with open("test_nqopen.txt", "a") as myfile:
+                myfile.write(seq['generated_text'] + "\n")
 
+        final_results_bm25[dev_data[i]['question']] = seq['generated_text']
+
+        with open('ICL_Random_Sampling_input_qnplusanswer_600_op_url_results.pkl', 'wb') as f:
+                pickle.dump(final_results_bm25, f)
 
 if __name__ == "__main__":
     main()
