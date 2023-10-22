@@ -57,7 +57,7 @@ def main():
     tokenized_corpus = [doc.split(" ") for doc in corpus]
     bm25 = BM25Okapi(tokenized_corpus)
     print("Method: BM25 Ranking")
-    for i in range(4):
+    for i in range(train_data):
         print("Executed " + str(i))
         question = train_data[i]['question']
         demo_prompt = get_demonstrations_bm25(icl_dataset, corpus, bm25, question ,3)

@@ -32,7 +32,7 @@ def get_demonstrations_bm25(icl_dataset:list, corpus, bm25, query:str, k:int=3)-
     for i in demonstrations:
         demo = icl_dataset[i]
         question = demo["question"]
-        answer = "".join(demo["answer"])
+        answer = " ".join(demo["answer"])
         context = demo["context"]
         prompt+= f"Question: {question} \nOutput:{{Context: {context} Answer: {answer}}}\n"
     return prompt + "<EOE>\n"
