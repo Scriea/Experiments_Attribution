@@ -9,8 +9,8 @@ def get_demonstrations_random(icl_dataset:list, k:int=3)-> str:
         question = demo["question"]
         answer = "".join(demo["answer"])
         context = demo["context"]
-        prompt+= f"Question: {question}\nContext: {context}\nAnswer: {answer}\n"
-    return prompt
+        prompt+= f"Question: {question} \nOutput:{{ Context: {context} Answer: {answer} }}\n"
+    return prompt + "<EOE>"
 
 def get_demonstrations_coverage(icl_dataset:list, k:int=3)-> str:
     prompt = ""
@@ -21,7 +21,7 @@ def get_demonstrations_coverage(icl_dataset:list, k:int=3)-> str:
         answer = demo["anwer"]
         context = demo["context"]
         prompt+= f"Question: {question}\nContext: {context}\nAnswer: {answer}\n"
-    return prompt
+    return prompt + "<EOE>\n"
 
 def get_demonstrations_bm25(icl_dataset:list, corpus, bm25, query:str, k:int=3)-> str:
     prompt = ""
@@ -33,5 +33,4 @@ def get_demonstrations_bm25(icl_dataset:list, corpus, bm25, query:str, k:int=3)-
         answer = demo["anwer"]
         context = demo["context"]
         prompt+= f"Question {i+1}: {question}\nContext: {context}\nAnswer: {answer}\n"
-    prompt += "```"
-    return prompt
+    return prompt + "<EOE>\n"
