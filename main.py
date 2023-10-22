@@ -21,19 +21,20 @@ def split_and_shuffle(input_list, split_ratio=0.3):
     dev = input_list[split_index:]
     return train, dev
 
-def main(type):
-    bnb_config = BitsAndBytesConfig(
-        load_in_8bit=True,
-        #bnb_4bit_quant_type="nf4",
-        #bnb_4bit_compute_dtype=torch.float16,
-    )
-    model = AutoModelForCausalLM.from_pretrained(
-        "tiiuae/falcon-7b-instruct",
-        quantization_config=bnb_config,
-        trust_remote_code=True,
-        device_map=6,
-        device = 6
-    )
+def main():
+    # bnb_config = BitsAndBytesConfig(
+    #     load_in_8bit=True,
+    #     #bnb_4bit_quant_type="nf4",
+    #     #bnb_4bit_compute_dtype=torch.float16,
+    # )
+    model = "tiiuae/falcon-7b-instruct"
+    # model = AutoModelForCausalLM.from_pretrained(
+    #     "tiiuae/falcon-7b-instruct",
+    #     quantization_config=bnb_config,
+    #     trust_remote_code=True,
+    #     device_map=6,
+    #     device = 6
+    # )
     tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-7b-instruct")
     tokenizer.pad_token = tokenizer.eos_token
     pipeline = transformers.pipeline(

@@ -1,10 +1,9 @@
 transformers
+datasets
 torch
 trl
-datasets
 accelerate
 bitsandbytes 
 einops 
 wandb
-evaluate
 rank_bm25
