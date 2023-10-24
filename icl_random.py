@@ -1,11 +1,12 @@
-import random
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import pickle
 import re
 import torch
 import transformers
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoTokenizer, TrainingArguments
 from datasets import load_dataset
-from selector import *
+from selector import get_demonstrations_random
 
 """
 Helper Functions
@@ -17,21 +18,21 @@ Helper Functions
 #     dev = input_list[split_index:]
 #     return train, dev
 
+
 def main():
 
-    # bnb_config = BitsAndBytesConfig(
-    #     load_in_8bit=True,
-    #     #bnb_4bit_quant_type="nf4",
-    #     #bnb_4bit_compute_dtype=torch.float16,
-    # )
-    model = "tiiuae/falcon-7b-instruct"
-    # model = AutoModelForCausalLM.from_pretrained(
-    #     "tiiuae/falcon-7b-instruct",
-    #     quantization_config=bnb_config,
-    #     trust_remote_code=True,
-    #     device_map=6,
-    #     device = 6
-    # )
+    bnb_config = BitsAndBytesConfig(
+        load_in_8bit=True,
+        #bnb_4bit_quant_type="nf4",
+        #bnb_4bit_compute_dtype=torch.float16,
+    )
+    #model = "tiiuae/falcon-7b-instruct"
+    model = AutoModelForCausalLM.from_pretrained(
+        "tiiuae/falcon-7b-instruct",
+        quantization_config=bnb_config,
+        trust_remote_code=True,
+        device_map="auto",
+    )
     tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-7b-instruct")
     tokenizer.pad_token = tokenizer.eos_token
     pipeline = transformers.pipeline(
@@ -40,8 +41,7 @@ def main():
         tokenizer=tokenizer,
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
-        # device_map = 6,
-        device = 1
+        device_map = "auto",
     )
     icl_dataset = pickle.load(open('data/finetune_data_600_plus_url.pkl', 'rb'))
     nq_open = load_dataset('nq_open', cache_dir='../data/')
@@ -52,13 +52,13 @@ def main():
  
     ## RandomSampling
     print("Method: Random Sampling")
-    for i in range(len(train_data)):
+    for i in range(len(dev_data)):
         print("Executed " + str(i))
         demo_prompt = get_demonstrations_random(icl_dataset, 3)
-        query = initial_string + demo_prompt + "\nQuestion:" + train_data[i]['question'] + "\nOutput: "
+        query = initial_string + demo_prompt + "\nQuestion:" + dev_data[i]['question'] + "\nOutput: "
         sequences = pipeline(
             query,
-            max_length=1024,
+            max_length=512,
             do_sample=True,
             top_k=1,
             num_return_sequences=1,
@@ -67,18 +67,17 @@ def main():
         for seq in sequences:
             res = " ".join(re.split("Output:",seq['generated_text'].split("<EOE>")[1], flags=re.IGNORECASE))
             res = re.split("Answer:", res, flags=re.IGNORECASE)
-            res_context = "".join(res[0].split(train_data[i]['question'])[1:]).strip()
+            res_context = "".join(res[0].split(dev_data[i]['question'])[1:]).strip()
             res_ans = res[1].split("Question:")[0].strip() if len(res)>1 else res_context
             print(f"Result:\n{seq['generated_text']}")
-            with open("test_nqopen_random.txt", "w", encoding='utf-8') as myfile:
+            with open("test_nqopen_dev_random.txt", "w", encoding='utf-8') as myfile:
                 myfile.write(seq['generated_text'] + "\n")
-            final_results_random[train_data[i]['question']] = {
+            final_results_random[dev_data[i]['question']] = {
                                         'answer': res_ans,
                                         'context' : res_context
                                         }
-    
-    with open('ICL_Random_Sampling_results.pkl', 'wb') as f:
-        pickle.dump(final_results_random, f)
+            with open('ICL_Random_Sampling_Results.pkl', 'wb') as f:
+                pickle.dump(final_results_random, f)
 
 if __name__ == "__main__":
     main()

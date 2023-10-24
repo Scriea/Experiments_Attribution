@@ -1,19 +1,16 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3"
 import pickle
 import re
 import torch
 import transformers
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoTokenizer, TrainingArguments
 from datasets import load_dataset
-from selector import get_demonstrations_bm25
-from rank_bm25 import BM25Okapi
-
-"""
-Helper Functions
-"""
+from bert_score import score
+import numpy as np
 
 def main():
+
     bnb_config = BitsAndBytesConfig(
         load_in_8bit=True,
         #bnb_4bit_quant_type="nf4",
@@ -37,24 +34,18 @@ def main():
     )
     icl_dataset = pickle.load(open('data/finetune_data_600_plus_url.pkl', 'rb'))
     nq_open = load_dataset('nq_open', cache_dir='../data/')
-    dev_data = nq_open['validation']
+    # dev_data = nq_open['validation']
     train_data = nq_open['train']
     initial_string = "Given a question generate background context and answer the given question based on the generated context.\nExamples:"
-    final_results_bm25={}
-    
-    """
-    BM25
-    """
-    corpus = [ qca['question'] + qca['context'] + " ".join(qca['answer']) for qca in icl_dataset]
-    tokenized_corpus = [doc.split(" ") for doc in corpus]
-    bm25 = BM25Okapi(tokenized_corpus)
-    
-    print("Method: BM25 Ranking")
-    for i in range(dev_data):
+    final_results_bert={}
+    documents = [item['question'] for item in icl_dataset]
+ 
+    ## RandomSampling
+    print("Method: BERTScore")
+    for i in range(len(train_data)):
         print("Executed " + str(i))
-        question = dev_data[i]['question']
-        demo_prompt = get_demonstrations_bm25(icl_dataset, corpus, bm25, question ,3)
-        query = initial_string + demo_prompt + "\nQuestion:" + question + "\nOutput: "
+        demo_prompt = get_demonstrations_bert(icl_dataset, 3)
+        query = initial_string + demo_prompt + "\nQuestion:" + train_data[i]['question'] + "\nOutput: "
         sequences = pipeline(
             query,
             max_length=512,
@@ -66,18 +57,18 @@ def main():
         for seq in sequences:
             res = " ".join(re.split("Output:",seq['generated_text'].split("<EOE>")[1], flags=re.IGNORECASE))
             res = re.split("Answer:", res, flags=re.IGNORECASE)
-            res_context = "".join(res[0].split(dev_data[i]['question'])[1:]).strip()
+            res_context = "".join(res[0].split(train_data[i]['question'])[1:]).strip()
             res_ans = res[1].split("Question:")[0].strip() if len(res)>1 else res_context
             print(f"Result:\n{seq['generated_text']}")
-            with open("test_nqopen_dev_bm25.txt", "w", encoding='utf-8') as myfile_bm:
-                myfile_bm.write(seq['generated_text'] + "\n")
-            final_results_bm25[dev_data[i]['question']] = {
+            with open("test_nqopen_bert.txt", "w", encoding='utf-8') as myfile:
+                myfile.write(seq['generated_text'] + "\n")
+            final_results_bert[train_data[i]['question']] = {
                                         'answer': res_ans,
                                         'context' : res_context
                                         }
+            with open('ICL_bert_results.pkl', 'wb') as f:
+                pickle.dump(final_results_bert, f)
 
-            with open('ICL_BM25_Results.pkl', 'wb') as f_b:
-                pickle.dump(final_results_bm25, f_b)
-                
 if __name__ == "__main__":
     main()
+
