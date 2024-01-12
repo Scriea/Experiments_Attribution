@@ -1,7 +1,21 @@
 import random
 from rank_bm25 import BM25Okapi
+import json
 import numpy as np
 from bert_score import score
+
+
+def get_demonstrations_random_wiki()-> str:
+    path = "./icl_wiki_examples.json"
+    prompt = ""
+    with open(path) as f:
+        demonstrations = json.load(f)
+    for demo in demonstrations:
+        question = demo["question"]
+        answer = demo["answer"]
+        context = demo["contents"]
+        prompt+= f"Question: {question} \nOutput:{{ Context: {context}\nAnswer: {answer} }}\n"
+    return prompt + "<EOE>\n"
 
 def get_demonstrations_random(icl_dataset:list, k:int=3)-> str:
     prompt = ""
@@ -12,7 +26,7 @@ def get_demonstrations_random(icl_dataset:list, k:int=3)-> str:
         answer = "".join(demo["answer"])
         context = demo["context"]
         prompt+= f"Question: {question} \nOutput:{{ Context: {context} Answer: {answer} }}\n"
-    return prompt + "<EOE>"
+    return prompt + "<EOE>\n"
 
 def get_demonstrations_coverage(icl_dataset:list, k:int=3)-> str:
     prompt = ""

@@ -18,7 +18,6 @@ Helper Functions
 #     dev = input_list[split_index:]
 #     return train, dev
 
-
 def main():
 
     bnb_config = BitsAndBytesConfig(
@@ -26,7 +25,6 @@ def main():
         #bnb_4bit_quant_type="nf4",
         #bnb_4bit_compute_dtype=torch.float16,
     )
-    #model = "tiiuae/falcon-7b-instruct"
     model = AutoModelForCausalLM.from_pretrained(
         "tiiuae/falcon-7b-instruct",
         quantization_config=bnb_config,
@@ -47,7 +45,7 @@ def main():
     nq_open = load_dataset('nq_open', cache_dir='../data/')
     dev_data = nq_open['validation']
     train_data = nq_open['train']
-    initial_string = "Given a question generate background context and answer the given question based on the generated context.\nExamples:"
+    initial_string = "Given a question generate background context and answer the given question based on the generated context.\n###Examples:"
     final_results_random={}
  
     ## RandomSampling
@@ -70,11 +68,9 @@ def main():
             res_context = "".join(res[0].split(dev_data[i]['question'])[1:]).strip()
             res_ans = res[1].split("Question:")[0].strip() if len(res)>1 else res_context
             print(f"Result:\n{seq['generated_text']}")
-            with open("test_nqopen_dev_random.txt", "w", encoding='utf-8') as myfile:
+            with open("test_nqopen_dev_random.txt", "a", encoding='utf-8') as myfile:
                 myfile.write(seq['generated_text'] + "\n")
-            final_results_random[dev_data[i]['question']] = {
-                                        'answer': res_ans,
-                                        'context' : res_context
+            final_results_random[dev_data[i]['question']] = {'answer': res_ans, 'context' : res_context
                                         }
             with open('ICL_Random_Sampling_Results.pkl', 'wb') as f:
                 pickle.dump(final_results_random, f)

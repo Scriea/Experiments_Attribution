@@ -69,13 +69,9 @@ def main():
             res_context = "".join(res[0].split(dev_data[i]['question'])[1:]).strip()
             res_ans = res[1].split("Question:")[0].strip() if len(res)>1 else res_context
             print(f"Result:\n{seq['generated_text']}")
-            with open("test_nqopen_dev_bm25.txt", "w", encoding='utf-8') as myfile_bm:
-                myfile_bm.write(seq['generated_text'] + "\n")
-            final_results_bm25[dev_data[i]['question']] = {
-                                        'answer': res_ans,
-                                        'context' : res_context
-                                        }
-
+            with open("test_nqopen_dev_bm25.txt", "a", encoding='utf-8') as myfile_bm:
+                myfile_bm.write(seq['generated_text'] + "\n###\n")
+            final_results_bm25[dev_data[i]['question']] = {'answer': res_ans,'context' : res_context}
             with open('ICL_BM25_Results.pkl', 'wb') as f_b:
                 pickle.dump(final_results_bm25, f_b)
                 
