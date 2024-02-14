@@ -4,7 +4,7 @@ import pickle
 import re
 import torch
 import transformers
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoTokenizer, TrainingArguments
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainingArguments
 from datasets import load_dataset
 from selector import *
 
@@ -34,8 +34,8 @@ def main():
         trust_remote_code=True,
         device_map = "auto",
     )
-   # icl_dataset = pickle.load(open('data/finetune_data_600_plus_url.pkl', 'rb'))
-    nq_open = load_dataset('nq_open', cache_dir='../data/')
+   # icl_dataset = pickle.load(open('../data/finetune_data_600_plus_url.pkl', 'rb'))
+    nq_open = load_dataset('nq_open', cache_dir='../../data/')
     dev_data = nq_open['validation']
     initial_string = "Given a question generate background context and answer the given question based on the generated context. Ignore <EOE>.\nExamples:\n"
     demo_prompt = get_demonstrations_random_wiki()
@@ -45,7 +45,7 @@ def main():
     print("Method: Random Sampling")
     for i in range(len(dev_data)):
         print("Executed " + str(i))
-        query = initial_string + demo_prompt + "\nQuestion:" + dev_data[i]['question']
+        query = f"{initial_string} {demo_prompt} + \nQuestion: + {dev_data[i]['question']} \nContext:"
         sequences = pipeline(
             query,
             max_length=1024,

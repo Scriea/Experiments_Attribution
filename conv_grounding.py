@@ -14,8 +14,6 @@ predictions = pickle.load(open(path, 'rb'))
 groudingformat = {}
 for key, value in predictions.items():
     groudingformat[key] = value['context']
-
-output_file = "./grounding/Grounding_format_" + os.path.basename(path)
+output_file =os.path.join( os.path.dirname(path), "Grounding_format_" + os.path.basename(path))
 with open(output_file, 'wb') as f:
     pickle.dump(groudingformat, f)
-

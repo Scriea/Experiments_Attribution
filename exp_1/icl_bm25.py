@@ -1,25 +1,19 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,5,7"
 import pickle
 import re
 import torch
 import transformers
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoTokenizer, TrainingArguments
 from datasets import load_dataset
-from selector import get_demonstrations_random
+from selector import get_demonstrations_bm25
+from rank_bm25 import BM25Okapi
 
 """
 Helper Functions
 """
-# def split_and_shuffle(input_list, split_ratio=0.3):
-#     random.shuffle(input_list)
-#     split_index = int(len(input_list) * split_ratio)
-#     train = input_list[:split_index]
-#     dev = input_list[split_index:]
-#     return train, dev
 
 def main():
-
     bnb_config = BitsAndBytesConfig(
         load_in_8bit=True,
         #bnb_4bit_quant_type="nf4",
@@ -41,19 +35,24 @@ def main():
         trust_remote_code=True,
         device_map = "auto",
     )
-    icl_dataset = pickle.load(open('data/finetune_data_600_plus_url.pkl', 'rb'))
-    nq_open = load_dataset('nq_open', cache_dir='../data/')
+    icl_dataset = pickle.load(open('../data/finetune_data_600_plus_url.pkl', 'rb'))
+    nq_open = load_dataset('nq_open', cache_dir='../../data/')
     dev_data = nq_open['validation']
     train_data = nq_open['train']
-    initial_string = "Given a question generate background context and answer the given question based on the generated context.\n###Examples:"
-    final_results_random={}
- 
-    ## RandomSampling
-    print("Method: Random Sampling")
+    initial_string = "Given a question generate background context and answer the given question based on the generated context.\nExamples:"
+    final_results_bm25={}
+    """
+    BM25
+    """
+    corpus = [ qca['question'] + qca['context'] + " ".join(qca['answer']) for qca in icl_dataset]
+    tokenized_corpus = [doc.split(" ") for doc in corpus]
+    bm25 = BM25Okapi(tokenized_corpus)
+    print("Method: BM25 Ranking")
     for i in range(len(dev_data)):
         print("Executed " + str(i))
-        demo_prompt = get_demonstrations_random(icl_dataset, 3)
-        query = initial_string + demo_prompt + "\nQuestion:" + dev_data[i]['question'] + "\nOutput: "
+        question = dev_data[i]['question']
+        demo_prompt = get_demonstrations_bm25(icl_dataset, corpus, bm25, question ,3)
+        query = initial_string + demo_prompt + "\nQuestion:" + question + "\nOutput: "
         sequences = pipeline(
             query,
             max_length=512,
@@ -68,13 +67,15 @@ def main():
             res_context = "".join(res[0].split(dev_data[i]['question'])[1:]).strip()
             res_ans = res[1].split("Question:")[0].strip() if len(res)>1 else res_context
             print(f"Result:\n{seq['generated_text']}")
-            with open("test_nqopen_dev_random.txt", "a", encoding='utf-8') as myfile:
-                myfile.write(seq['generated_text'] + "\n")
-            final_results_random[dev_data[i]['question']] = {'answer': res_ans, 'context' : res_context
+            with open("test_nqopen_dev_bm25_2.txt", "a", encoding='utf-8') as myfile_bm:
+                myfile_bm.write(seq['generated_text'] + "\n###***\n")
+            final_results_bm25[dev_data[i]['question']] = {
+                                        'answer': res_ans,
+                                        'context' : res_context
                                         }
-            with open('ICL_Random_Sampling_Results.pkl', 'wb') as f:
-                pickle.dump(final_results_random, f)
+
+            with open('ICL_BM25_results_2.pkl', 'wb') as f_b:
+                pickle.dump(final_results_bm25, f_b)
 
 if __name__ == "__main__":
     main()
-
