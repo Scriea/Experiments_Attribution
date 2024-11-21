@@ -165,3 +165,13 @@ data/
 env/
 grounding/
 results/
+*.json
+temp*
+*.pkl
+*.csv
+*.json
+lora-instruct/**
+**/lora-instruct/**
+*.pth
+*.safetensors
+*.pt
