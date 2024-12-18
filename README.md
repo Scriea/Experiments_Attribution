@@ -65,3 +65,8 @@ ntext
         Pending
 
 - ## Exp 7:
+
+    Experiments targetted subset selection for diversity.
+
+    Model : [LLAMA3](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct)
+    Dataset: NQ_OPEN

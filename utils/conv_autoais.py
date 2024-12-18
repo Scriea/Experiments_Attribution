@@ -29,7 +29,8 @@ with open(path) as f:
 f.close()
 
 output_file = args.output_file
-
+if not output_file.endswith(".pkl"):
+    raise TypeError("Error! Output file should be a pickle file (.pkl)") 
 # output_file = "autoais_format_" + ('BM25' if 'BM25' in os.path.basename(path) else 'Random')
 os.makedirs(os.path.dirname(output_file), exist_ok=True)
 with open(output_file, 'wb') as g:

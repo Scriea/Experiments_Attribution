@@ -175,3 +175,4 @@ lora-instruct/**
 *.pth
 *.safetensors
 *.pt
+*.npy
